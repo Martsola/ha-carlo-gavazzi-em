@@ -1,0 +1,61 @@
+name: Validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  hassfest:
+    name: Home Assistant hassfest
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+      - name: Run hassfest
+        uses: home-assistant/actions/hassfest@master
+
+  hacs:
+    name: HACS validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+      - name: Run HACS validation
+        uses: hacs/action@main
+        with:
+          category: integration
+
+  config-flow-smoke:
+    name: Config flow import (${{ matrix.homeassistant }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - python: "3.13"
+            homeassistant: "2026.2.3"
+          - python: "3.14"
+            homeassistant: "2026.6.1"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install Home Assistant and integration dependency
+        run: >-
+          python -m pip install
+          "homeassistant==${{ matrix.homeassistant }}"
+          "pymodbus==3.11.2"
+      - name: Import config flow and run protocol smoke checks
+        run: python scripts/smoke_import.py

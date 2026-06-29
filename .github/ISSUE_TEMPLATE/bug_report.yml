@@ -1,0 +1,52 @@
+name: Bug report
+description: Report a problem with discovery, polling, entities, or decoding
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Attach Home Assistant diagnostics and debug logs after removing private network information.
+  - type: input
+    id: version
+    attributes:
+      label: Integration version
+      placeholder: 1.0.0
+    validations:
+      required: true
+  - type: input
+    id: ha_version
+    attributes:
+      label: Home Assistant version
+    validations:
+      required: true
+  - type: input
+    id: meter
+    attributes:
+      label: Meter model and firmware
+      placeholder: EM28072DMV53X2SX, r.E0
+    validations:
+      required: true
+  - type: input
+    id: gateway
+    attributes:
+      label: RTU-to-TCP gateway model and framing
+      placeholder: Gateway model, Modbus TCP or RTU over TCP
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem description
+      description: Include expected and actual behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant debug log
+      render: text
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics or register observations

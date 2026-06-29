@@ -1,0 +1,78 @@
+{
+  "title": "Carlo Gavazzi EM",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Add Modbus gateway",
+        "description": "Enter the Modbus TCP gateway details. The integration will scan the RTU bus and create one Home Assistant device for each compatible meter.",
+        "data": {
+          "host": "Gateway host or IP address",
+          "port": "TCP port",
+          "update_interval": "Update interval",
+          "advanced_settings": "Show advanced settings",
+          "limit_scan_range": "Limit discovery to an address range"
+        }
+      },
+      "advanced": {
+        "title": "Advanced gateway settings",
+        "description": "Auto detect tests both standard Modbus TCP and RTU-over-TCP by reading a real meter. A transparent gateway's RS485 baud and parity must already match the meters; those settings cannot be changed through generic Modbus TCP.",
+        "data": {
+          "timeout": "Request timeout",
+          "request_retries": "Polling retries after the first attempt",
+          "delay_between_requests_ms": "Delay between requests",
+          "transport_mode": "TCP framing"
+        }
+      },
+      "scan_range": {
+        "title": "Modbus address range",
+        "description": "The default scan covers slave addresses 1 through 247. Restricting the range can make setup much faster.",
+        "data": {
+          "scan_start": "First slave address",
+          "scan_end": "Last slave address"
+        }
+      }
+    },
+    "progress": {
+      "discover_devices": "Scanning pass {pass}/{passes}, address {address}, using {transport}. Compatible meters found: {found}."
+    },
+    "abort": {
+      "already_configured": "This gateway is already configured.",
+      "unique_id_mismatch": "The gateway address does not match this config entry.",
+      "reconfigure_successful": "Gateway settings and discovered meters were updated."
+    },
+    "error": {
+      "invalid_range": "The first slave address must be less than or equal to the last slave address.",
+      "cannot_connect": "Could not communicate with the gateway. Check its address, port, framing mode, and timeout, then try again.",
+      "no_devices_found": "The gateway responded, but no compatible EM270 or EM280 meters were found. Check the RS485 settings, wiring, and slave-address range."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Polling options",
+        "description": "Use Reconfigure on the integration entry to change the gateway address, framing mode, scan range, or rescan for meters.",
+        "data": {
+          "update_interval": "Update interval",
+          "advanced_settings": "Show advanced polling settings"
+        }
+      },
+      "advanced": {
+        "title": "Advanced polling options",
+        "data": {
+          "timeout": "Request timeout",
+          "request_retries": "Retries after the first attempt",
+          "delay_between_requests_ms": "Delay between requests"
+        }
+      }
+    }
+  },
+  "selector": {
+    "transport_mode": {
+      "options": {
+        "auto": "Auto detect",
+        "socket": "Modbus TCP",
+        "rtu_over_tcp": "RTU over TCP"
+      }
+    }
+  }
+}
