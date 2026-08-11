@@ -23,6 +23,7 @@ from .const import (
     DEFAULT_SCAN_START,
     IDENTIFICATION_ADDRESS,
     MAX_MODBUS_READ_WORDS,
+    MAX_MODBUS_READ_WORDS_EM24,
     PRODUCTION_YEAR_ADDRESS,
     SECONDARY_ADDRESS_START,
     SERIAL_NUMBER_START,
@@ -40,8 +41,11 @@ from .modbus import (
     is_missing_32,
 )
 from .registers import (
+    EM24_IDENTIFICATION_CODES,
+    EM24_VERSION_MODELS,
     IDENTIFICATION_CODES,
     SENSOR_DESCRIPTIONS,
+    SENSOR_DESCRIPTIONS_EM24,
     RegisterSensorDescription,
 )
 
@@ -59,9 +63,12 @@ class ReadBlock:
     descriptions: tuple[RegisterSensorDescription, ...]
 
 
-def _build_read_blocks() -> tuple[ReadBlock, ...]:
-    """Group adjacent variables without exceeding the protocol's 18-word limit."""
-    descriptions = sorted(SENSOR_DESCRIPTIONS, key=lambda item: item.address)
+def _build_read_blocks(
+    descriptions: tuple[RegisterSensorDescription, ...],
+    max_words: int,
+) -> tuple[ReadBlock, ...]:
+    """Group adjacent variables without exceeding the protocol's word limit."""
+    descriptions = sorted(descriptions, key=lambda item: item.address)
     blocks: list[ReadBlock] = []
     current: list[RegisterSensorDescription] = []
     block_start = 0
@@ -72,7 +79,7 @@ def _build_read_blocks() -> tuple[ReadBlock, ...]:
         if (
             current
             and description.address == block_end
-            and description_end - block_start <= MAX_MODBUS_READ_WORDS
+            and description_end - block_start <= max_words
         ):
             current.append(description)
             block_end = description_end
@@ -101,7 +108,11 @@ def _build_read_blocks() -> tuple[ReadBlock, ...]:
     return tuple(blocks)
 
 
-READ_BLOCKS = _build_read_blocks()
+READ_BLOCKS = _build_read_blocks(SENSOR_DESCRIPTIONS, MAX_MODBUS_READ_WORDS)
+READ_BLOCKS_EM24 = _build_read_blocks(
+    SENSOR_DESCRIPTIONS_EM24,
+    MAX_MODBUS_READ_WORDS_EM24,
+)
 
 
 class CarloGavazziAPI:
@@ -202,7 +213,7 @@ class CarloGavazziAPI:
         if not registers:
             return None
         code = decode_uint16(registers)
-        return code if code in IDENTIFICATION_CODES else None
+        return code if code in IDENTIFICATION_CODES or code in EM24_IDENTIFICATION_CODES else None
 
     async def async_read_meter_info(
         self,
@@ -227,18 +238,6 @@ class CarloGavazziAPI:
             1,
             attempts=attempts,
         )
-        serial_block = await self.client.async_read_holding_registers(
-            slave_id,
-            SERIAL_NUMBER_START,
-            SERIAL_NUMBER_WORDS + 1,
-            attempts=attempts,
-        )
-        secondary_block = await self.client.async_read_holding_registers(
-            slave_id,
-            SECONDARY_ADDRESS_START,
-            2,
-            attempts=attempts,
-        )
 
         version_code = _optional_uint16(version_word, 0)
         revision_code = _optional_uint16(revision_word, 0)
@@ -248,24 +247,39 @@ class CarloGavazziAPI:
             version_code,
             revision_code,
         )
-        model_name = _model_name(identification, model_family)
+        model_name = _model_name(identification, model_family, version_code)
 
         serial_number: str | None = None
         production_year: int | None = None
-        if serial_block:
-            serial_number = (
-                decode_ascii_serial(serial_block[:SERIAL_NUMBER_WORDS]) or None
+        secondary_address: int | None = None
+        # EM24 stores no serial block at 0x5000 and no secondary address at 0x5100.
+        if model_family != "em24":
+            serial_block = await self.client.async_read_holding_registers(
+                slave_id,
+                SERIAL_NUMBER_START,
+                SERIAL_NUMBER_WORDS + 1,
+                attempts=attempts,
             )
-            production_year = _optional_uint16(
-                serial_block,
-                PRODUCTION_YEAR_ADDRESS - SERIAL_NUMBER_START,
+            secondary_block = await self.client.async_read_holding_registers(
+                slave_id,
+                SECONDARY_ADDRESS_START,
+                2,
+                attempts=attempts,
+            )
+            if serial_block:
+                serial_number = (
+                    decode_ascii_serial(serial_block[:SERIAL_NUMBER_WORDS]) or None
+                )
+                production_year = _optional_uint16(
+                    serial_block,
+                    PRODUCTION_YEAR_ADDRESS - SERIAL_NUMBER_START,
+                )
+            secondary_address = (
+                decode_uint32_lsw_msw(secondary_block)
+                if secondary_block and not is_missing_32(secondary_block)
+                else None
             )
 
-        secondary_address = (
-            decode_uint32_lsw_msw(secondary_block)
-            if secondary_block and not is_missing_32(secondary_block)
-            else None
-        )
         gateway_key = (
             f"{str(self._config[CONF_HOST]).strip().lower()}:"
             f"{int(self._config.get(CONF_PORT, DEFAULT_PORT))}"
@@ -301,12 +315,20 @@ class CarloGavazziAPI:
         any_success = False
 
         for meter in meters:
+            descriptions = (
+                SENSOR_DESCRIPTIONS_EM24
+                if meter.model_family == "em24"
+                else SENSOR_DESCRIPTIONS
+            )
+            blocks = (
+                READ_BLOCKS_EM24 if meter.model_family == "em24" else READ_BLOCKS
+            )
             values: dict[str, list[int] | None] = {
-                description.key: None for description in SENSOR_DESCRIPTIONS
+                description.key: None for description in descriptions
             }
             successful_blocks = 0
 
-            for block in READ_BLOCKS:
+            for block in blocks:
                 registers = await self.client.async_read_holding_registers(
                     meter.slave_id,
                     block.address,
@@ -326,7 +348,7 @@ class CarloGavazziAPI:
             data[meter.unique_key] = {
                 "available": successful_blocks > 0,
                 "successful_blocks": successful_blocks,
-                "total_blocks": len(READ_BLOCKS),
+                "total_blocks": len(blocks),
                 "values": values,
             }
 
@@ -344,7 +366,9 @@ def _optional_uint16(registers: list[int] | None, index: int) -> int | None:
 
 
 def _model_family(identification: int, version_code: int | None) -> str:
-    """Infer the EM270 X/W branch from the documented firmware branches."""
+    """Infer the meter family from identification and firmware version."""
+    if identification in EM24_IDENTIFICATION_CODES:
+        return "em24"
     if identification >= 280:
         return "em280"
     if version_code == 1:
@@ -354,7 +378,16 @@ def _model_family(identification: int, version_code: int | None) -> str:
     return "em270"
 
 
-def _model_name(identification: int, model_family: str) -> str:
+def _model_name(
+    identification: int,
+    model_family: str,
+    version_code: int | None = None,
+) -> str:
+    if model_family == "em24":
+        return EM24_VERSION_MODELS.get(
+            version_code if version_code is not None else -1,
+            f"Unknown model {identification}",
+        )
     base = IDENTIFICATION_CODES.get(identification, f"Unknown model {identification}")
     if model_family == "em270_x":
         return f"{base}X"
@@ -370,6 +403,10 @@ def _firmware_version(
     version_code: int | None,
     revision_code: int | None,
 ) -> str | None:
+    if model_family == "em24":
+        if revision_code is None:
+            return None
+        return f"r.{revision_code}"
     if version_code is None or revision_code is None or not 0 <= version_code <= 25:
         return None
     letter = chr(ord("A") + version_code)

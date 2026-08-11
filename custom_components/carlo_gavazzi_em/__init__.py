@@ -1,4 +1,4 @@
-"""Carlo Gavazzi EM270/EM280 integration."""
+"""Carlo Gavazzi EM270/EM280/EM24 integration."""
 
 from __future__ import annotations
 

@@ -170,6 +170,12 @@ def decode_uint16(registers: list[int]) -> int:
     return registers[0]
 
 
+def decode_int16(registers: list[int]) -> int:
+    """Decode one signed 16-bit register."""
+    raw = registers[0]
+    return raw - 0x10000 if raw & 0x8000 else raw
+
+
 def decode_int32_lsw_msw(registers: list[int]) -> int:
     """Decode a signed 32-bit value using the meter's LSW/MSW word order."""
     raw = (registers[1] << 16) | registers[0]

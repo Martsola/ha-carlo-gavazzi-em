@@ -1,6 +1,6 @@
 # Carlo Gavazzi EM for Home Assistant
 
-A local, read-only Home Assistant custom integration for Carlo Gavazzi **EM270 X**, **EM270 W**, and **EM280** energy meters connected through a transparent Modbus RTU-to-Modbus TCP gateway.
+A local, read-only Home Assistant custom integration for Carlo Gavazzi **EM270 X**, **EM270 W**, **EM280**, and **EM24** energy meters connected through a transparent Modbus RTU-to-Modbus TCP gateway.
 
 > [!IMPORTANT]
 > `v1.0.0` is a clean rebuild intended to replace the earlier prototype repository. The code has been reviewed against the supplied EM270/EM280 communication protocol and includes automated import, lint, HACS, and hassfest checks, but it still needs testing with physical meters and a real gateway.
@@ -13,9 +13,9 @@ A local, read-only Home Assistant custom integration for Carlo Gavazzi **EM270 X
 - Three discovery passes; passes two and three skip addresses already discovered.
 - Live discovery progress showing the pass, current address, framing mode, and number of meters found.
 - Automatic probing of standard Modbus TCP and RTU-over-TCP framing, or an explicit user-selected mode.
-- Automatic EM270/EM280 model identification.
+- Automatic EM270/EM280/EM24 model identification.
 - Serial number, model, model ID, and firmware stored as Home Assistant device information rather than duplicate sensors.
-- All documented read-only measurement and diagnostic registers exposed as sensors.
+- All documented read-only measurement and diagnostic registers exposed as sensors for EM270/EM280 and EM24 meters.
 - Configurable update interval, timeout, retry count, and delay between requests.
 - Contiguous reads limited to the protocol maximum of 18 registers.
 - LSW/MSW 32-bit decoding and handling for the documented unsupported, overflow, and missing-TCD values.
@@ -77,7 +77,7 @@ A full scan can take several minutes because unused RTU addresses may each wait 
 
 ## Device and entity behaviour
 
-Each discovered meter is represented as its own Home Assistant device. The meter serial number is used as device metadata and as the stable device identifier when available. A gateway/address fallback identifier is used when the serial number cannot be read.
+Each discovered meter is represented as its own Home Assistant device. The meter serial number is used as device metadata and as the stable device identifier when available. A gateway/address fallback identifier is used when the serial number cannot be read. EM24 meters expose no serial number or secondary address, so they always use the gateway/address fallback identifier.
 
 The complete documented read-only entity set is created for every meter. Variables that are unavailable for a specific model, firmware, measuring system, TCD arrangement, or SUM/Virtual configuration remain unavailable instead of reporting a false value.
 
@@ -119,6 +119,19 @@ Confirm that `/config/custom_components/carlo_gavazzi_em/manifest.json` reports 
 Download diagnostics from the integration entry and attach them to a GitHub issue. Remove any network information you do not want to publish.
 
 ## Supported identification values
+
+EM24:
+
+| Code | Model family |
+|---:|---|
+| 45 | EM24DINAV93X |
+| 46 | EM24DINAV03X |
+| 47 | EM24DINAV53X |
+| 48 | EM24DINAV63X |
+
+The exact EM24 model is derived from the firmware version code, for example EM24DINAV93XO2X, EM24DINAV53DISX, or EM24DINAV53DR2X.
+
+EM270 and EM280:
 
 | Code | Model |
 |---:|---|

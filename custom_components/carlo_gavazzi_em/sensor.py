@@ -14,12 +14,18 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import DOMAIN, MeterInfo
 from .coordinator import CarloGavazziCoordinator
 from .modbus import (
+    decode_int16,
     decode_int32_lsw_msw,
     decode_uint16,
     decode_uint32_lsw_msw,
     is_missing_32,
 )
-from .registers import SENSOR_DESCRIPTIONS, RegisterSensorDescription, map_option
+from .registers import (
+    SENSOR_DESCRIPTIONS,
+    SENSOR_DESCRIPTIONS_EM24,
+    RegisterSensorDescription,
+    map_option,
+)
 
 
 async def async_setup_entry(
@@ -35,7 +41,11 @@ async def async_setup_entry(
     async_add_entities(
         CarloGavazziSensor(coordinator, meter, description)
         for meter in meters
-        for description in SENSOR_DESCRIPTIONS
+        for description in (
+            SENSOR_DESCRIPTIONS_EM24
+            if meter.model_family == "em24"
+            else SENSOR_DESCRIPTIONS
+        )
     )
 
 
@@ -110,6 +120,12 @@ def decode_sensor_value(
 
     if len(registers) != 1:
         return None
+    if description.signed:
+        raw = decode_int16(registers)
+        value = raw / description.scale
+        if description.maximum is not None and abs(value) > description.maximum:
+            return None
+        return round(value, 6) if description.scale != 1 else raw
     raw = decode_uint16(registers)
     if raw == 0xFFFF:
         return None

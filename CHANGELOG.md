@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.0
+
+- Added EM24 (EM24DINAV) meter support with its own identification codes, full read-only register map, and signed 16-bit decoding.
+- EM24 read blocks honour the 11-word protocol limit and skip the EM270/EM280 serial-number and secondary-address reads that EM24 does not provide.
+- Replaced the non-renderable `progress_done` step with a "Discovery complete" summary form after the scan finishes, so the dialog shows the result and the flow can be submitted instead of leaking.
+- Relaxed the pinned `pymodbus` requirement to `pymodbus>=3.11.2`.
+
 ## 1.0.0
 
 - Clean repository rebuild replacing the earlier prototype history.

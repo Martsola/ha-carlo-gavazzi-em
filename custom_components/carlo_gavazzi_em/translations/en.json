@@ -30,6 +30,10 @@
           "scan_start": "First slave address",
           "scan_end": "Last slave address"
         }
+      },
+      "finish": {
+        "title": "Discovery complete",
+        "description": "Scan finished: pass {pass}, address {address}, using {transport}. Compatible meters found: {found}. Review the settings and submit to finish setup."
       }
     },
     "progress": {
@@ -43,7 +47,7 @@
     "error": {
       "invalid_range": "The first slave address must be less than or equal to the last slave address.",
       "cannot_connect": "Could not communicate with the gateway. Check its address, port, framing mode, and timeout, then try again.",
-      "no_devices_found": "The gateway responded, but no compatible EM270 or EM280 meters were found. Check the RS485 settings, wiring, and slave-address range."
+      "no_devices_found": "The gateway responded, but no compatible EM270, EM280, or EM24 meters were found. Check the RS485 settings, wiring, and slave-address range."
     }
   },
   "options": {

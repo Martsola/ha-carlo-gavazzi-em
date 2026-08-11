@@ -1,4 +1,4 @@
-"""Config flow for Carlo Gavazzi EM270/EM280."""
+"""Config flow for Carlo Gavazzi EM270/EM280/EM24."""
 
 from __future__ import annotations
 
@@ -289,7 +289,16 @@ class CarloGavazziConfigFlow(ConfigFlow, domain=DOMAIN):
                 progress_task=self._discovery_task,
                 description_placeholders=self._progress_placeholders,
             )
-        return self.async_show_progress_done(next_step_id="finish")
+
+        # The frontend cannot render progress_done (no DataEntryFlowStep member,
+        # no render branch, no footer button), so the dialog would stay stuck on
+        # the progress bar and the flow would leak. Instead: hand over to the
+        # summary form and fire ONE refetch notification after cur_step is set.
+        # call_soon runs only once the current task (call_configure) completes,
+        # by which time _async_configure has already assigned flow.cur_step, so
+        # the refetch GET deterministically returns the finish form.
+        self.hass.loop.call_soon(self.async_notify_flow_changed)
+        return await self.async_step_finish()
 
     async def _async_discover(self) -> list[MeterInfo]:
         """Create the API lazily and run the discovery scan."""
@@ -342,8 +351,19 @@ class CarloGavazziConfigFlow(ConfigFlow, domain=DOMAIN):
         user_input: dict[str, Any] | None = None,
     ) -> ConfigFlowResult:
         """Store discovered meters and finish setup or reconfiguration."""
-        del user_input
         assert self._discovery_task is not None
+
+        if user_input is None:
+            # First visit (from async_step_discover after the scan finished):
+            # show a summary form so the flow stays alive and the frontend has
+            # something renderable. Submitting this empty form re-enters here
+            # with user_input={} and completes the flow.
+            return self.async_show_form(
+                step_id="finish",
+                data_schema=vol.Schema({}),
+                description_placeholders=dict(self._progress_placeholders),
+            )
+        del user_input
 
         try:
             meters = self._discovery_task.result()
