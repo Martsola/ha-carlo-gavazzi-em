@@ -388,9 +388,11 @@ def _model_name(
     version_code: int | None = None,
 ) -> str:
     if model_family == "em24":
+        fallback = EM24_IDENTIFICATION_CODES.get(
+            identification, f"Unknown model {identification}"
+        )
         return EM24_VERSION_MODELS.get(
-            version_code if version_code is not None else -1,
-            f"Unknown model {identification}",
+            version_code if version_code is not None else -1, fallback
         )
     base = IDENTIFICATION_CODES.get(identification, f"Unknown model {identification}")
     if model_family == "em270_x":
