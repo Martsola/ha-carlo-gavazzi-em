@@ -213,7 +213,11 @@ class CarloGavazziAPI:
         if not registers:
             return None
         code = decode_uint16(registers)
-        return code if code in IDENTIFICATION_CODES or code in EM24_IDENTIFICATION_CODES else None
+        return (
+            code
+            if code in IDENTIFICATION_CODES or code in EM24_IDENTIFICATION_CODES
+            else None
+        )
 
     async def async_read_meter_info(
         self,
